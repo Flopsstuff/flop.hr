@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import Link from 'next/link';
+import Reveal from '@/components/Reveal';
 
 interface Owner {
   name: string;
@@ -34,51 +35,49 @@ export default async function Owners() {
   const lastUpdate = lastCommitDate(filePath);
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-8">
-      <main className="flex flex-col items-center justify-start flex-grow">
-      <section className="w-full flex flex-col md:flex-row items-center gap-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-4">
-              <Link href="/" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">
-                FlopCoin
-              </Link> owners
-            </h1>
-          </div>
-        </section>
+    <main className="mx-auto max-w-content px-5 pb-20 sm:px-8">
+      <section className="pt-12 pb-4 sm:pt-16">
+        <Reveal>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+            <Link href="/" className="link">
+              FlopCoin
+            </Link>{' '}
+            owners
+          </h1>
+        </Reveal>
+      </section>
 
-        <section className="w-full flex flex-col md:flex-row items-center gap-6 bg-gray-100 dark:bg-gray-900 p-4 rounded">
-          <div className="order-2 md:order-1 flex-grow">
-            <h2 className="text-2xl font-bold mb-3">List of FlopCoin owners:</h2>
+      <div className="space-y-6 md:space-y-8">
+        <Reveal delay={40}>
+          <section className="card p-6 md:p-8">
+            <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">List of FlopCoin owners:</h2>
 
-            <ul className="list-disc pl-5 mb-2">
+            <ul className="divide-y divide-line">
               {owners.map((owner, index) => (
-                <li key={index}>
-                  <strong>{owner.name}</strong>&nbsp;&nbsp;
+                <li key={index} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-3">
+                  <strong className="font-semibold">{owner.name}</strong>
                   {owner.link_text && owner.link_href ? (
-                    <a href={owner.link_href} className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300" target="_blank" rel="noopener noreferrer">
+                    <a href={owner.link_href} className="link text-sm" target="_blank" rel="noopener noreferrer">
                       {owner.link_text}
                     </a>
-                  ) : null} {owner.description ? <span>{owner.description}</span> : null}
+                  ) : null}
+                  {owner.description ? <span className="text-fg-muted">{owner.description}</span> : null}
                 </li>
               ))}
             </ul>
-            <p>Last update: {lastUpdate}</p>
-          </div>
-        </section>
+            <p className="mt-5 text-sm text-fg-muted">Last update: {lastUpdate}</p>
+          </section>
+        </Reveal>
 
-        <section className="w-full flex flex-col md:flex-row items-center gap-6 bg-gray-200 dark:bg-gray-800 p-4 rounded">
-          <div className="flex-grow">
-            <h2 className="text-2xl font-bold mb-3">Want to be on this list?</h2>
-            <p className="mb-2">Fill out <a href="https://forms.gle/5xEeyVDAHdSDsLGD6" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300">this form</a> with a photo of you and your FlopCoin </p>
-            <h2 className="text-1xl font-bold mb-2">Want to remove yourself from this list?</h2>
+        <Reveal delay={40}>
+          <section className="card space-y-3 p-6 md:p-8">
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Want to be on this list?</h2>
+            <p>Fill out <a href="https://forms.gle/5xEeyVDAHdSDsLGD6" className="link">this form</a> with a photo of you and your FlopCoin </p>
+            <h2 className="pt-1 text-lg font-semibold tracking-tight">Want to remove yourself from this list?</h2>
             <p>Please contact Flop directly</p>
-          </div>
-        </section>
-      </main>
-      <footer className="text-center text-gray-500 text-sm py-4">
-        (c) 2025 FlopCoin.art
-      </footer>
-    </div>
+          </section>
+        </Reveal>
+      </div>
+    </main>
   );
 }
-

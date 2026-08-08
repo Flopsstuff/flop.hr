@@ -2,25 +2,184 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens. Light is the default; `.dark` on <html> flips them.
+ * The no-flash script in layout.tsx sets that class before first paint,
+ * falling back to the OS `prefers-color-scheme` when no choice is stored.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f6f5f2;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #efece6;
+  --line: #e4e0d8;
+  --fg: #1b1b1f;
+  --fg-muted: #6c6b73;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05), 0 1px 3px rgba(24, 24, 27, 0.04);
+  --shadow-lg: 0 1px 2px rgba(24, 24, 27, 0.05), 0 18px 40px -20px rgba(24, 24, 27, 0.28);
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --bg: #0b0b0d;
+  --bg-elevated: #131316;
+  --surface: #17171b;
+  --surface-2: #1f1f25;
+  --line: #2a2a31;
+  --fg: #ececee;
+  --fg-muted: #9a9aa5;
+  --accent: #a5b4fc;
+  --accent-hover: #c7d2fe;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.4), 0 24px 48px -24px rgba(0, 0, 0, 0.7);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Smooth theme cross-fade */
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+
+  /* Quiet, themed scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 9999px;
+    border: 2px solid var(--bg);
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    text-underline-offset: 2px;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  }
+  .link:hover {
+    color: var(--accent-hover);
+    text-decoration-color: var(--accent-hover);
+  }
+
+  /* Frosted, sticky top bar */
+  .site-header {
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Content card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  }
+
+  /* Square, framed photo with a gentle zoom on hover */
+  .photo-frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.85rem;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    background: var(--surface-2);
+  }
+  .photo-frame img {
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .photo-frame:hover img {
+    transform: scale(1.045);
+  }
+
+  /* Icon button (theme toggle) */
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--fg);
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-icon:hover {
+    background: var(--surface-2);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    color: var(--accent);
+  }
+
+  /* Header nav pill */
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--fg-muted);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .nav-link:hover {
+    color: var(--fg);
+    background: var(--surface-2);
+  }
+}
+
+/* Scroll-reveal primitive used by <Reveal>. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .photo-frame img,
+  .card,
+  body {
+    transition: none;
+  }
 }
