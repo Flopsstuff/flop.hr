@@ -29,7 +29,7 @@ jobs:
     - name: Build static site
       run: yarn build
 
-    - name: Deploy to Cloudflare Pages
+    - name: Deploy to Cloudflare Workers
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -37,4 +37,5 @@ jobs:
         # Installed with npm so it stays outside the immutable yarn project.
         packageManager: npm
         wranglerVersion: "4.120.0"
-        command: pages deploy out --project-name=flopcoin --branch=main
+        # Everything else (worker name, assets dir, custom domain) is in wrangler.jsonc.
+        command: deploy

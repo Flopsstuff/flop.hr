@@ -43,6 +43,7 @@ build/Release
 .vuepress/dist
 .docusaurus
 .serverless/
+.wrangler/
 
 # Cache and Temporary Files
 .cache/

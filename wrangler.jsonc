@@ -1,0 +1,27 @@
+{
+  "name": "flopcoin",
+  "compatibility_date": "2026-08-08",
+
+  // Assets-only Worker: there is no "main" entry point, so every request is
+  // served straight from the static export in out/ and no Worker code runs.
+  "assets": {
+    "directory": "./out",
+    // Workers does not guess the project shape the way Pages did — this has to
+    // be explicit. next build --output export emits out/404.html.
+    "not_found_handling": "404-page"
+  },
+
+  // Keeps flopcoin.<subdomain>.workers.dev alive next to the custom domain, the
+  // way flopcoin.pages.dev used to be — useful for checking a deploy. Wrangler
+  // turns it off by default as soon as "routes" is set, so it has to be explicit.
+  "workers_dev": true,
+
+  // flopcoin.art is attached to the Worker as a custom domain; Cloudflare keeps
+  // the DNS record for it in sync. The zone must live in the same account.
+  "routes": [
+    {
+      "pattern": "flopcoin.art",
+      "custom_domain": true
+    }
+  ]
+}

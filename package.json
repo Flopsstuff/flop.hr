@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "preview": "npx --yes wrangler pages dev out",
-    "deploy": "next build && npx --yes wrangler pages deploy out --project-name=flopcoin --branch=main --commit-dirty=true",
+    "preview": "npx --yes wrangler dev",
+    "deploy": "next build && npx --yes wrangler deploy",
     "lint": "next lint"
   },
   "dependencies": {

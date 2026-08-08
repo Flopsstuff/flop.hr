@@ -43,7 +43,8 @@ public/                  Static assets served at site root
   coin.svg, *.svg        Icons / logo
   c1-c5.jpg, s1-s4.jpg   Photos — tracked via Git LFS (see below)
 out/                     Static export produced by `yarn build` (gitignored)
-.github/workflows/main.yml   CI/CD: build & upload to Cloudflare Pages on push to main
+wrangler.jsonc           Worker config: name, assets dir, 404 handling, custom domain
+.github/workflows/main.yml   CI/CD: build & upload to Cloudflare Workers on push to main
 ```
 
 Path alias: `@/*` maps to `./src/*` (see `tsconfig.json`).
@@ -56,8 +57,11 @@ yarn dev                   # local dev server (next dev --turbopack)
 yarn build                 # static export into out/ — run this to verify a change compiles
 yarn lint                  # ESLint (next lint)
 yarn preview               # serve out/ through wrangler, the way Cloudflare does
-yarn deploy                # build + upload out/ to Cloudflare Pages by hand
+yarn deploy                # build + upload out/ to Cloudflare Workers by hand
 ```
+
+`yarn preview` and `yarn deploy` both read `wrangler.jsonc`, so they need `out/` to exist —
+`yarn deploy` builds it for you, `yarn preview` does not.
 
 There is no `yarn start`: `next start` does not apply to a static export.
 
@@ -97,16 +101,28 @@ a static export this happens **at build time**, not per request.
 
 ## Deployment
 
-The site is a **static export** hosted on **Cloudflare Pages**, project `flopcoin`
-(account `42548ca95c85a68b4ce20ad79b805334`). `flopcoin.art` is a proxied CNAME to
-`flopcoin.pages.dev`, registered as a custom domain on the Pages project.
+The site is a **static export** hosted on **Cloudflare Workers** (static assets), worker
+`flopcoin` in account `42548ca95c85a68b4ce20ad79b805334`. `flopcoin.art` is attached to the
+worker as a **custom domain**, declared in `wrangler.jsonc` — Cloudflare keeps its DNS
+record in sync, so do not hand-edit that record. The worker is also reachable at
+`flopcoin.serg-flop.workers.dev`, which is handy for checking a deploy without the domain.
+
+`wrangler.jsonc` has no `main` entry point: this is an **assets-only worker**, so no Worker
+code runs and every request is served straight from `out/`. Unlike Pages, Workers does not
+guess the project shape — `assets.not_found_handling` is set to `404-page` explicitly so
+that `out/404.html` is served for unknown paths. Path resolution (`/owners` → `owners.html`,
+`/owners/` → redirect to `/owners`) comes from the default `auto-trailing-slash` handling.
 
 - **CI/CD:** `.github/workflows/main.yml` runs on every push to `main` on `ubuntu-latest`:
-  checkout (with LFS + full history) → `yarn build` → `wrangler pages deploy out`.
+  checkout (with LFS + full history) → `yarn build` → `wrangler deploy`.
   Pushing to `main` deploys to production — treat main as release.
 - **By hand:** `yarn deploy` does the same from a local checkout.
 - There is no server, no container and no tunnel. Anything that would need a request-time
   runtime does not belong in this project.
+
+The site was on **Cloudflare Pages** until August 2026; the Pages project is kept around,
+domainless, as a rollback. Pages still works but no longer gets new features, which is why
+new deploys go through Workers.
 
 ## Environment / secrets
 
@@ -114,24 +130,26 @@ Nothing is needed to build or run the site locally. Deploying needs two values:
 
 | Var                      | Purpose                                              |
 | ------------------------ | ---------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`   | API token with *Account → Cloudflare Pages → Edit*   |
-| `CLOUDFLARE_ACCOUNT_ID`  | Cloudflare account id                                |
+| `CLOUDFLARE_API_TOKEN`   | API token from the *Edit Cloudflare Workers* template |
+| `CLOUDFLARE_ACCOUNT_ID`  | Cloudflare account id                                 |
 
 CI reads them from **GitHub repository secrets**; `yarn deploy` reads them from a local
 `.env` (see `.env.example`), which wrangler loads on its own and which takes precedence
 over any `wrangler login` session. Note that `next build` also loads `.env` — keep
 deployment credentials un-prefixed so they never reach the client bundle.
 
-**Never commit secrets.** The permission is account-wide: Cloudflare has no per-project
-scoping for Pages tokens, so this token can touch every Pages project in the account.
+**Never commit secrets.** The Workers permissions are account-wide — the token can touch
+every worker in the account, not just this one. Only the zone-level *Workers Routes* part
+is scoped, to `flopcoin.art`.
 
 ## Conventions & gotchas
 
 - **Git LFS:** all `*.jpg` are stored in Git LFS (`.gitattributes`). Have `git-lfs`
   installed; if photos look like tiny text pointer files, run `git lfs pull`. CI checks
   out with `lfs: true`. This is also why the build runs in GitHub Actions rather than on
-  Cloudflare's own build system — **Pages does not support Git LFS** and would publish the
-  pointer files as if they were the photos.
+  Cloudflare's own build system — **it does not support Git LFS** and would publish the
+  pointer files as if they were the photos. `wrangler deploy` only uploads `out/`, which by
+  then holds the real images, so it does not care about LFS at all.
 - **Yarn Berry only:** use `yarn`, not `npm`. The pinned yarn binary is committed under
   `.yarn/releases/`.
 - **Static site:** `next.config.ts` sets `output: 'export'` and `images.unoptimized`. Server
