@@ -86,7 +86,7 @@ export default function RootLayout({
 
         <footer className="border-t border-line">
           <div className="mx-auto max-w-content px-5 py-8 text-center text-sm text-fg-muted sm:px-8">
-            (c) 2025 FlopCoin.art
+            © 2026 FlopCoin.art
           </div>
         </footer>
       </body>
