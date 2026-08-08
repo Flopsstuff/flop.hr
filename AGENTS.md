@@ -29,11 +29,15 @@ runtime. Owners are maintained by editing a JSON file in the repo.
 
 ```
 src/app/                 App Router
-  layout.tsx             Root layout: <html>, metadata (title/description/icon), Geist fonts
+  layout.tsx             Root layout: <html>, metadata, Geist fonts, no-flash theme
+                         script, shared sticky header (logo/nav/toggle) + footer
   page.tsx               Home page — what a FlopCoin is, how to use it, examples, limits
   owners/page.tsx        Owners list (server component; see "Owners" below)
-  globals.css            Global styles / Tailwind layers
+  globals.css            Tailwind layers + theme design tokens (see "Theming & UI")
   favicon.ico
+src/components/          Shared client components
+  ThemeToggle.tsx        Light/dark toggle (persists to localStorage)
+  Reveal.tsx             Scroll-in fade wrapper (IntersectionObserver)
 public/                  Static assets served at site root
   owners.json            Source of truth for the owners list
   coin.svg, *.svg        Icons / logo
@@ -70,6 +74,26 @@ a static export this happens **at build time**, not per request.
 - "Last update" is the date of the last commit touching that file (`git log -1 --format=%cs`),
   with the file mtime as fallback. That is why CI checks out with `fetch-depth: 0` —
   a shallow clone would leave the page showing the build date instead.
+
+## Theming & UI
+
+- **Light/dark theme** is class-based (Tailwind `darkMode: 'class'`). A small inline
+  script in `layout.tsx` runs before first paint and adds `dark` to `<html>` from the
+  saved choice in `localStorage['theme']`, falling back to the OS `prefers-color-scheme`
+  — this prevents any flash of the wrong theme. `ThemeToggle` flips that class and saves
+  the choice. There is no separate "system" mode: the OS preference is only the default
+  before the user has toggled.
+- **Design tokens** live in `globals.css` as CSS variables on `:root` / `.dark`
+  (`--bg`, `--surface`, `--line`, `--fg`, `--fg-muted`, `--accent`, shadows). Tailwind
+  maps them to utilities (`bg-surface`, `text-fg`, `border-line`, `text-accent`, …), so
+  prefer those over hard-coded `gray-*` classes. Reusable pieces (`.card`, `.link`,
+  `.site-header`, `.btn-icon`, `.nav-link`, `.photo-frame`) are defined there too.
+- **Motion:** wrap a block in `<Reveal>` to fade+slide it in when it scrolls into view.
+  It degrades safely — `prefers-reduced-motion` disables the animation and a `<noscript>`
+  rule reveals everything when JS is off. Keep new above-the-fold content inside `Reveal`
+  only when a brief pre-JS hidden state is acceptable.
+- The Geist font is applied via `--font-geist-sans`; do not re-introduce a hard-coded
+  `font-family` in `globals.css`.
 
 ## Deployment
 
