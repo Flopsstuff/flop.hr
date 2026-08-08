@@ -38,13 +38,8 @@ public/                  Static assets served at site root
   owners.json            Source of truth for the owners list
   coin.svg, *.svg        Icons / logo
   c1-c5.jpg, s1-s4.jpg   Photos — tracked via Git LFS (see below)
-config/cloudflared/      Cloudflare Tunnel config
-  config.yml             Tunnel id + ingress: flopcoin.art -> http://nextjs:3000
-  dns-manager.ts         Upserts the tunnel CNAME via the Cloudflare API (`yarn dns`)
-  keys/                  Tunnel credentials (gitignored; injected at deploy)
-Dockerfile               Prod image: yarn install -> yarn dns -> yarn build -> yarn start
-docker-compose.yml       Two services: `nextjs` (3006->3000) + `cloudflared`
-.github/workflows/main.yml   CI/CD: build & deploy on push to main (self-hosted runner)
+out/                     Static export produced by `yarn build` (gitignored)
+.github/workflows/main.yml   CI/CD: build & upload to Cloudflare Pages on push to main
 ```
 
 Path alias: `@/*` maps to `./src/*` (see `tsconfig.json`).
@@ -54,58 +49,70 @@ Path alias: `@/*` maps to `./src/*` (see `tsconfig.json`).
 ```bash
 yarn install --immutable   # install deps (Corepack provides yarn 4)
 yarn dev                   # local dev server (next dev --turbopack)
-yarn build                 # production build — run this to verify a change compiles
+yarn build                 # static export into out/ — run this to verify a change compiles
 yarn lint                  # ESLint (next lint)
-yarn start                 # serve the production build
-yarn dns                   # upsert the Cloudflare DNS record (needs CF_* env; deploy-time)
+yarn preview               # serve out/ through wrangler, the way Cloudflare does
+yarn deploy                # build + upload out/ to Cloudflare Pages by hand
 ```
+
+There is no `yarn start`: `next start` does not apply to a static export.
 
 There are no automated tests. **Verify changes with `yarn build` + `yarn lint`, and by
 loading the affected page in `yarn dev`.**
 
 ## Owners list
 
-`src/app/owners/page.tsx` is a server component that reads `public/owners.json` from the
-filesystem on each request and derives the "Last update" date from that file's **mtime**.
+`src/app/owners/page.tsx` reads `public/owners.json` from the filesystem. Since the site is
+a static export this happens **at build time**, not per request.
 
 - To add/remove an owner, edit `public/owners.json`. Shape per entry:
   `{ "name", "link_text?", "link_href?", "description?" }`.
-- Because "last update" comes from the file mtime, committing an edit is what refreshes it.
+- "Last update" is the date of the last commit touching that file (`git log -1 --format=%cs`),
+  with the file mtime as fallback. That is why CI checks out with `fetch-depth: 0` —
+  a shallow clone would leave the page showing the build date instead.
 
 ## Deployment
 
-- **Container:** `docker compose up -d` builds the Next.js image and runs it alongside
-  `cloudflared`. The app is exposed on host port **3006** (container 3000); the tunnel
-  reaches it internally at `nextjs:3000` and publishes it at **flopcoin.art**.
-- **DNS:** the Dockerfile runs `yarn dns` during build to keep the `flopcoin.art` CNAME
-  pointed at the tunnel. It needs the `CF_*` build args (below).
-- **CI/CD:** `.github/workflows/main.yml` runs on every push to `main` on a **self-hosted**
-  runner: it writes `.env` and `config/cloudflared/keys/key.json` from the `ENV_FILE` and
-  `KEY_JSON` GitHub secrets, then `docker compose build --no-cache && docker compose up -d`.
+The site is a **static export** hosted on **Cloudflare Pages**, project `flopcoin`
+(account `42548ca95c85a68b4ce20ad79b805334`). `flopcoin.art` is a proxied CNAME to
+`flopcoin.pages.dev`, registered as a custom domain on the Pages project.
+
+- **CI/CD:** `.github/workflows/main.yml` runs on every push to `main` on `ubuntu-latest`:
+  checkout (with LFS + full history) → `yarn build` → `wrangler pages deploy out`.
   Pushing to `main` deploys to production — treat main as release.
+- **By hand:** `yarn deploy` does the same from a local checkout.
+- There is no server, no container and no tunnel. Anything that would need a request-time
+  runtime does not belong in this project.
 
 ## Environment / secrets
 
-From `.env.example` (Cloudflare, used by `yarn dns` / the Dockerfile build args):
+Nothing is needed to build or run the site locally. Deploying needs two values:
 
-| Var             | Purpose                                             |
-| --------------- | --------------------------------------------------- |
-| `CF_ZONE_ID`    | Cloudflare zone id for the domain                   |
-| `CF_API_TOKEN`  | Cloudflare API token (DNS edit) — **secret**        |
-| `CF_TUNNEL_ID`  | Cloudflare tunnel id (must match `config.yml`)      |
+| Var                      | Purpose                                              |
+| ------------------------ | ---------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`   | API token with *Account → Cloudflare Pages → Edit*   |
+| `CLOUDFLARE_ACCOUNT_ID`  | Cloudflare account id                                |
 
-Tunnel credentials live in `config/cloudflared/keys/key.json` (gitignored, provided at
-deploy from the `KEY_JSON` secret). **Never commit secrets, `.env`, or `key.json`.**
+CI reads them from **GitHub repository secrets**; `yarn deploy` reads them from a local
+`.env` (see `.env.example`), which wrangler loads on its own and which takes precedence
+over any `wrangler login` session. Note that `next build` also loads `.env` — keep
+deployment credentials un-prefixed so they never reach the client bundle.
+
+**Never commit secrets.** The permission is account-wide: Cloudflare has no per-project
+scoping for Pages tokens, so this token can touch every Pages project in the account.
 
 ## Conventions & gotchas
 
 - **Git LFS:** all `*.jpg` are stored in Git LFS (`.gitattributes`). Have `git-lfs`
   installed; if photos look like tiny text pointer files, run `git lfs pull`. CI checks
-  out with `lfs: true`.
+  out with `lfs: true`. This is also why the build runs in GitHub Actions rather than on
+  Cloudflare's own build system — **Pages does not support Git LFS** and would publish the
+  pointer files as if they were the photos.
 - **Yarn Berry only:** use `yarn`, not `npm`. The pinned yarn binary is committed under
   `.yarn/releases/`.
-- **Static site:** `next.config.ts` sets `images.unoptimized`. No runtime data source
-  beyond `owners.json`; keep it that way unless a change explicitly calls for it.
+- **Static site:** `next.config.ts` sets `output: 'export'` and `images.unoptimized`. Server
+  components, route handlers, ISR, middleware and `next/image` optimization are all
+  unavailable — a change that needs any of them changes the hosting model too.
 - **Domain vs repo name:** production is `flopcoin.art`; the repo/remote is `flop.hr`; the
   `package.json` `name` field (`imqu.web`) is a leftover and not meaningful.
 - **Branch discipline:** one feature = one branch = one PR. `main` is the deploy branch —

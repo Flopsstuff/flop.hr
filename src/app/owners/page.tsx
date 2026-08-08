@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import Link from 'next/link';
@@ -9,15 +10,28 @@ interface Owner {
   description?: string;
 }
 
+// Date of the last commit that touched the file. A fresh CI clone resets every
+// mtime to checkout time, so the file date is only a fallback.
+function lastCommitDate(filePath: string): string {
+  try {
+    const date = execFileSync('git', ['log', '-1', '--format=%cs', '--', filePath], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (date) return date;
+  } catch {
+    // no git in the build environment
+  }
+  return fs.statSync(filePath).mtime.toISOString().split('T')[0];
+}
+
 export default async function Owners() {
   // Read file from filesystem
   const filePath = path.join(process.cwd(), 'public', 'owners.json');
   const fileContent = fs.readFileSync(filePath, 'utf-8');
   const owners: Owner[] = JSON.parse(fileContent);
-  
-  // Get file modification date
-  const stats = fs.statSync(filePath);
-  const lastUpdate = stats.mtime.toISOString().split('T')[0];
+
+  const lastUpdate = lastCommitDate(filePath);
 
   return (
     <div className="min-h-screen flex flex-col justify-between p-8">

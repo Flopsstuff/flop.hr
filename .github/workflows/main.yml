@@ -3,34 +3,38 @@ name: Build and Deploy
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
         lfs: true
+        # The owners page derives "Last update" from the last commit that
+        # touched public/owners.json, so the full history has to be present.
+        fetch-depth: 0
 
-    - name: Stop Docker
-      run: docker compose down --rmi all || true
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
 
-    - name: Download secure files
+    - name: Install dependencies
       run: |
-        mkdir -p config/cloudflared/keys
-        cat <<EOF > .env
-        ${{ secrets.ENV_FILE }}
-        EOF
-        cat <<EOF > config/cloudflared/keys/key.json
-        ${{ secrets.KEY_JSON }}
-        EOF
+        corepack enable
+        yarn install --immutable
 
-    - name: Build and start containers
-      run: |
-        echo "Building and starting containers..."
-        docker compose build --no-cache
-        docker compose up -d
+    - name: Build static site
+      run: yarn build
 
-    - name: Clean up old images
-      run: docker image prune -f || true
+    - name: Deploy to Cloudflare Pages
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Installed with npm so it stays outside the immutable yarn project.
+        packageManager: npm
+        wranglerVersion: "4.120.0"
+        command: pages deploy out --project-name=flopcoin --branch=main

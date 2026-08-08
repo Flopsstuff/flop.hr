@@ -1,7 +1,0 @@
-tunnel: 2c4f00c9-2733-4460-bb52-fcc40a80275d
-credentials-file: /etc/cloudflared/keys/key.json
-
-ingress:
-  - hostname: flopcoin.art
-    service: http://nextjs:3000
-  - service: http_status:404
