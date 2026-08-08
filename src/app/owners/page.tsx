@@ -50,7 +50,7 @@ export default async function Owners() {
       <div className="space-y-6 md:space-y-8">
         <Reveal delay={40}>
           <section className="card p-6 md:p-8">
-            <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">List of FlopCoin owners:</h2>
+            <h2 className="mb-4 text-xl font-bold tracking-tight sm:text-2xl">Some of FlopCoin owners:</h2>
 
             <ul className="divide-y divide-line">
               {owners.map((owner, index) => (
